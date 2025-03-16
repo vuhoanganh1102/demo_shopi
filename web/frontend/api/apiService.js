@@ -40,11 +40,11 @@ export const getUserDetail = async (userId) => {
 };
 
 // Hàm lấy danh sách sản phẩm
-export const getProducts = async (params = {}) => {
-  try {
-    const response = await api.get(API_ENDPOINTS.PRODUCTS.LIST, { params });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || "Failed to fetch products";
-  }
-};
+// export const getProducts = async (params = {}) => {
+//   try {
+//     const response = await api.get(API_ENDPOINTS.PRODUCTS.LIST, { params });
+//     return response.data;
+//   } catch (error) {
+//     throw error.response?.data || "Failed to fetch products";
+//   }
+// };

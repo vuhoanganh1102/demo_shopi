@@ -2,8 +2,9 @@ import dbMySQL from "../config/db.js";
 import shopify from "../shopify.js";
 // Lấy tất cả sản phẩm
 export const getAllProducts = async () => {
+  const connection = await dbMySQL.getConnection();
   try {
-    const [rows] = await dbMySQL.query(`SELECT 
+    const [rows] = await connection.query(`SELECT 
     p.id AS id,
     p.title AS title,
     p.description AS description,
@@ -29,6 +30,7 @@ export const getAllProducts = async () => {
   FROM xipat_init.products p
   LEFT JOIN xipat_init.product_media pm ON pm.product_id = p.id
   GROUP BY p.id;`);
+    console.log("check");
     return rows;
   } catch (error) {
     throw error;
@@ -37,8 +39,9 @@ export const getAllProducts = async () => {
 
 // Lấy sản phẩm theo ID
 export const getProductById = async (id) => {
+  const connection = await dbMySQL.getConnection();
   try {
-    const [rows] = await dbMySQL.query(
+    const [rows] = await connection.query(
       `SELECT 
     p.id AS id,
     p.title AS title,
@@ -87,6 +90,7 @@ export const getProductById = async (id) => {
       [id]
     );
     // await getProductsFromGraphql();
+    console.log("check", rows[0]);
     return rows[0];
   } catch (error) {
     throw error;
@@ -342,7 +346,7 @@ const funcUpdateVariantProductGraph = async (variables, session) => {
 };
 const getProductsFromGraphql = async (session) => {
   const client = new shopify.api.clients.Graphql({ session });
-  const data = await client.request(
+  const data = await client.query(
     `query {
     products(first: 10) {
       edges {
@@ -362,10 +366,164 @@ const getProductsFromGraphql = async (session) => {
   return data;
 };
 
-// const getDbFromShopifyToDB = async () => {
-//   try {
-//     const data =
-//   } catch (err) {
-//     console.log(err);
-//   }
-// };
+export const getDbFromShopifyToDB = async (session) => {
+  const connection = await dbMySQL.getConnection();
+  // Hàm upsert để insert hoặc update sản phẩm
+  const [cursorlastProductRaw, userRaw] = await Promise.all([
+    connection.query(
+      `SELECT sync.cursor FROM  xipat_init.sync_data_from_shopify_to_app sync
+      WHERE sync.shop = ? ORDER BY sync.created_at DESC LIMIT 1;`,
+      [session?.shop]
+    ),
+    connection.query(
+      `SELECT smt.id FROM  xipat_init.shopify_member_token smt
+      WHERE smt.shop = ?;`,
+      [session?.shop]
+    ),
+  ]);
+  const lastCursor = cursorlastProductRaw[0]?.cursor;
+  const useId = userRaw[0][0]?.id;
+
+  const client = new shopify.api.clients.Graphql({ session });
+  // ${lastCursor ? :", after:" +  }
+  const productsGraph = await client.request(
+    ` query {
+    products(first: 100 ${lastCursor ? `, after: "${lastCursor}"` : ""}) {
+      edges {
+        node {
+          id
+          title
+          category {
+            id
+            fullName
+          }
+          createdAt
+          description
+          descriptionHtml
+          media(first: 100) {
+            edges {
+              node {
+                id
+                mediaContentType
+                status
+                ... on MediaImage {
+                  originalSource {
+                    url
+                  }
+                }
+              }
+            }
+          }
+
+          onlineStoreUrl
+          status
+          totalInventory
+          variants(first: 100) {
+            edges {
+              node {
+                id
+                price
+                barcode
+                inventoryQuantity
+                displayName
+                title
+              }
+            }
+          }
+          vendor
+          handle
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+      }
+    }
+  }
+`
+  );
+  const products = await productsGraph.data.products.edges;
+  // console.log(products);
+
+  try {
+    let newLastCursor;
+    await connection.beginTransaction(); // Bắt đầu transaction
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i].node;
+      if (i === products.length - 1) {
+        newLastCursor = products[i].cursor;
+
+        await connection.query(
+          `INSERT INTO xipat_init.sync_data_from_shopify_to_app (\`cursor\`, shop)
+           VALUES (?, ?)`,
+          [newLastCursor, session.shop]
+        );
+      }
+
+      await connection.query(
+        `INSERT INTO xipat_init.products (id, title, description, category, vendor, inventory, quantity, product_status, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+         title = VALUES(title), description = VALUES(description), category = VALUES(category),
+         vendor = VALUES(vendor), inventory = VALUES(inventory), quantity = VALUES(quantity),
+         product_status = VALUES(product_status), user_id = VALUES(user_id);`,
+        [
+          Number(stringSplitId(product.id)), // id
+          product.title, // title
+          product.description, // description
+          product?.category?.fullName || "", // category
+          product.vendor, // vendor
+          product.totalInventory, // inventory
+          product.quantity || 0, // quantity
+          product.status, // product_status
+          useId, // user_id
+        ]
+      );
+      if (product?.media?.edges.length > 0) {
+        for (const e of product?.media.edges) {
+          await connection.query(
+            `INSERT INTO xipat_init.product_media (id, url, product_id)
+           VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+           url = VALUES(url), product_id = VALUES(product_id)`,
+            [
+              Number(stringSplitId(e.node.id)),
+              e.node?.originalSource?.url || "",
+              Number(stringSplitId(product.id)),
+            ]
+          );
+        }
+      }
+      if (product?.variants?.edges.length > 0) {
+        for (const e of product?.variants?.edges) {
+          await connection.query(
+            `INSERT INTO xipat_init.variants (id, title, pricing, inventory_quantity,product_id)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+           title = VALUES(title), pricing = VALUES(pricing), inventory_quantity = VALUES(inventory_quantity), product_id=VALUES(product_id);`,
+            [
+              Number(stringSplitId(e.node.id)), // id của variant
+              e.node.title, // title của product
+              Number(e.node.price), // pricing có thể là product description hoặc một giá trị khác tuỳ theo logic của bạn
+              e.node.inventoryQuantity, // inventoryQuantity từ variant
+              Number(stringSplitId(product.id)),
+            ]
+          );
+        }
+      }
+      await connection.commit(); // Commit nếu mọi thứ thành công
+    }
+    return products;
+  } catch (error) {
+    await connection.rollback(); // Rollback nếu có lỗi
+    console.error("Lỗi upsert sản phẩm:", error);
+  } finally {
+    connection.release();
+  }
+};
+
+const stringSplitId = (str) => {
+  const parts = str.split("/");
+  const id = parts[parts.length - 1]; // Lấy phần tử cuối cùng của mảng
+  return id;
+};

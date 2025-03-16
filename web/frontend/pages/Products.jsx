@@ -40,30 +40,56 @@ export default function Products() {
       console.log(err);
     }
   };
+  const getSyncedData = async () => {
+    try {
+      const res = await fetch("/api/product/sync-products", { method: "PUT" });
+      const result = await res.json();
+      console.log("result", result);
+      setData(result);
+      setAdditionalData(result?.additional);
+    } catch (err) {
+      console.log(err);
+    }
+  };
   useEffect(() => {
     getData();
   }, []);
-  return (
-    <ProductPage>
-      <div style={{ marginBottom: "20px" }}>
-        <ButtonGroup>
-          {data?.length && (
-            <Button onClick={getDataFromShopifySaveToDB}>
-              Get data from shopify save to db
-            </Button>
-          )}
+  const getLogginGG = async () => {
+    try {
+      window.open(
+        "https://c4ae-58-187-12-32.ngrok-free.app/auth/google",
+        "_blank"
+      );
 
-          {/* <Button>Get data</Button> */}
-        </ButtonGroup>
-      </div>
-      <Layout>
-        <Layout.Section>
-          <IndexTableWithViewsSearchFilterSorting
-            data={data}
-            additionalData={additionalData}
-          />
-        </Layout.Section>
-      </Layout>
-    </ProductPage>
+      return;
+    } catch (err) {
+      console.log("err", err);
+    }
+  };
+  return (
+    <>
+      <Button onClick={() => getSyncedData()}>OK</Button>
+    </>
+    // <ProductPage>
+    //   <div style={{ marginBottom: "20px" }}>
+    //     <ButtonGroup>
+    //       {data?.length && (
+    //         <Button onClick={getDataFromShopifySaveToDB}>
+    //           Get data from shopify save to db
+    //         </Button>
+    //       )}
+
+    //       {/* <Button>Get data</Button> */}
+    //     </ButtonGroup>
+    //   </div>
+    //   <Layout>
+    //     <Layout.Section>
+    //       <IndexTableWithViewsSearchFilterSorting
+    //         data={data}
+    //         additionalData={additionalData}
+    //       />
+    //     </Layout.Section>
+    //   </Layout>
+    // </ProductPage>
   );
 }

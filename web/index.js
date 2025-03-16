@@ -32,7 +32,8 @@ const STATIC_PATH =
 
 const app = express();
 // @ts-ignore
-
+// @ts-ignore
+app.use(cors());
 // Set up Shopify authentication and webhook handling
 // @ts-ignore
 app.get(shopify.config.auth.path, shopify.auth.begin());

@@ -5,6 +5,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getDbFromShopifyToDB,
 } from "./product.service.js";
 
 const ProductRouters = express.Router();
@@ -16,9 +17,14 @@ ProductRouters.get("/", async (req, res) => {
 
     // const products = JSON.parse(productsRaw);
     productsRaw.forEach((element) => {
+      // if (element?.images) {
+      //   element.images = JSON.parse(element.images);
+      //   if (!element?.images[0].id) element.images = [];
+      // }
       element.images = JSON.parse(element.images);
-      if (element.images[0].id === null) element.images = [];
+      console.log(element.images);
     });
+
     return res.json(productsRaw);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch products" });
@@ -86,6 +92,23 @@ ProductRouters.delete("/:id", async (req, res) => {
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Error deleting product" });
+  }
+});
+
+// synced products
+ProductRouters.put("/sync-products", async (req, res) => {
+  const session = res.locals.shopify.session;
+  console.log(session);
+  // Mảng sản phẩm từ request
+  try {
+    // if (Object.keys(products).length === 0) {
+    //   return res.status(400).json({ error: "No fields provided for update" });
+    // }
+
+    const synceddProducts = await getDbFromShopifyToDB(session);
+    return res.json(synceddProducts);
+  } catch (error) {
+    res.status(500).json({ error: "Error updating product" });
   }
 });
 
