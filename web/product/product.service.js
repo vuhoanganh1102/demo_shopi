@@ -1,39 +1,70 @@
 import dbMySQL from "../config/db.js";
 import shopify from "../shopify.js";
 // Lấy tất cả sản phẩm
-export const getAllProducts = async () => {
+export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
   const connection = await dbMySQL.getConnection();
   try {
-    const [rows] = await connection.query(`SELECT 
-    p.id AS id,
-    p.title AS title,
-    p.description AS description,
-    p.vendor AS vendor,
-    p.pricing AS pricing,
-    p.quantity AS quantity,
-    p.product_status AS productStatus,
-    p.category AS category,
-    p.created_at AS createdAt,
-    p.update_at AS updatedAt,
-    p.user_id AS userId,
-    CONCAT(
-      '[', 
-      GROUP_CONCAT(
-        JSON_OBJECT(
-          'id', pm.id, 
-          'url', pm.url, 
-          'type', pm.type
-        )
-      ),
-      ']'
-    ) AS images
-  FROM xipat_init.products p
-  LEFT JOIN xipat_init.product_media pm ON pm.product_id = p.id
-  GROUP BY p.id;`);
-    console.log("check");
-    return rows;
+    const offset = (page - 1) * limit;
+
+    // Điều kiện tìm kiếm nếu có keyword
+    const searchCondition = keyword ? "WHERE title LIKE ?" : "";
+    const searchValue = keyword ? [`%${keyword}%`] : [];
+
+    // Query lấy danh sách sản phẩm có phân trang + tìm kiếm
+    const [rows] = await connection.query(
+      `
+      SELECT 
+        p.id AS id,
+        p.title AS title,
+        p.description AS description,
+        p.vendor AS vendor,
+        p.pricing AS pricing,
+        p.quantity AS quantity,
+        p.product_status AS productStatus,
+        p.category AS category,
+        p.created_at AS createdAt,
+        p.update_at AS updatedAt,
+        p.user_id AS userId,
+        CONCAT(
+          '[', 
+          GROUP_CONCAT(
+            JSON_OBJECT(
+              'id', pm.id, 
+              'url', pm.url, 
+              'type', pm.type
+            )
+          ),
+          ']'
+        ) AS images
+      FROM xipat_init.products p
+      LEFT JOIN xipat_init.product_media pm ON pm.product_id = p.id
+      ${searchCondition}
+      GROUP BY p.id
+      LIMIT ? OFFSET ?
+      `,
+      [...searchValue, limit, offset] // Bind params để tránh SQL Injection
+    );
+
+    // Query để lấy tổng số sản phẩm (áp dụng tìm kiếm nếu có)
+    const [totalRows] = await connection.query(
+      `
+      SELECT COUNT(*) as total 
+      FROM xipat_init.products
+      ${keyword ? searchCondition : ""}
+      `,
+      searchValue // Bind params cho câu query này
+    );
+
+    return {
+      products: rows,
+      total: totalRows[0].total,
+      currentPage: page,
+      totalPages: Math.ceil(totalRows[0].total / limit),
+    };
   } catch (error) {
-    throw error;
+    console.log(error);
+  } finally {
+    connection.release(); // Đừng quên release connection
   }
 };
 
@@ -481,17 +512,19 @@ export const getDbFromShopifyToDB = async (session) => {
       );
       if (product?.media?.edges.length > 0) {
         for (const e of product?.media.edges) {
-          await connection.query(
-            `INSERT INTO xipat_init.product_media (id, url, product_id)
+          if (e.node?.originalSource?.url) {
+            await connection.query(
+              `INSERT INTO xipat_init.product_media (id, url, product_id)
            VALUES (?, ?, ?)
            ON DUPLICATE KEY UPDATE
            url = VALUES(url), product_id = VALUES(product_id)`,
-            [
-              Number(stringSplitId(e.node.id)),
-              e.node?.originalSource?.url || "",
-              Number(stringSplitId(product.id)),
-            ]
-          );
+              [
+                Number(stringSplitId(e.node.id)),
+                e.node?.originalSource?.url || null,
+                Number(stringSplitId(product.id)),
+              ]
+            );
+          }
         }
       }
       if (product?.variants?.edges.length > 0) {
@@ -526,4 +559,56 @@ const stringSplitId = (str) => {
   const parts = str.split("/");
   const id = parts[parts.length - 1]; // Lấy phần tử cuối cùng của mảng
   return id;
+};
+
+export const deleteItemsCheckBox = async (session, productIds) => {
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    throw new Error("Invalid productIds. Must be a non-empty array.");
+  }
+  const client = new shopify.api.clients.Graphql({ session });
+  const connection = await dbMySQL.getConnection();
+  try {
+    await connection.beginTransaction(); // Bắt đầu transaction để đảm bảo tất cả hoặc không có gì bị xóa
+
+    // Xóa tất cả product_media dựa vào product_id
+    await connection.query(
+      `DELETE FROM xipat_init.product_media WHERE product_id IN (?)`,
+      [productIds]
+    );
+
+    // Xóa tất cả variants dựa vào product_id
+    await connection.query(
+      `DELETE FROM xipat_init.variants WHERE product_id IN (?)`,
+      [productIds]
+    );
+
+    // Xóa tất cả products dựa vào id
+    await connection.query(`DELETE FROM xipat_init.products WHERE id IN (?)`, [
+      productIds,
+    ]);
+
+    await connection.commit(); // Xác nhận transaction
+    for (const productId of productIds) {
+      const data = await client.query({
+        data: `mutation {
+          productDelete(input: {id: "gid://shopify/Product/${productId}"}) {
+            deletedProductId
+            userErrors {
+              field
+              message
+            }
+          }
+        }`,
+      });
+    }
+    return {
+      success: true,
+      message: "Deleted products and related data successfully.",
+    };
+  } catch (error) {
+    await connection.rollback(); // Quay lại nếu có lỗi
+    throw error;
+  } finally {
+    connection.release(); // Giải phóng connection
+  }
 };

@@ -12,17 +12,29 @@ import {
   useBreakpoints,
   Thumbnail,
   Button,
+  Pagination,
 } from "@shopify/polaris";
 import type { IndexFiltersProps, TabProps } from "@shopify/polaris";
 import { useState, useCallback, useEffect } from "react";
 import { ProductPage } from "./page/ProductPage";
 import { useNavigate } from "react-router-dom";
+import { ToastWithActionExample } from "./ToastWithActionExample";
 
 export function IndexTableWithViewsSearchFilterSorting({
   data,
+  setData,
   additionalData,
+  pagination,
+  currentPage,
+  setCurrentPage,
+  itemsPerPage,
+  setItemsPerPage,
+  handlePrevious,
+  handleNext,
+  searchKeyword,
+  setSearchKeyword,
 }) {
-  console.log("data", additionalData);
+  console.log("data", data);
   const [all, setAll] = useState(data?.length || 0);
   const sleep = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
@@ -37,6 +49,7 @@ export function IndexTableWithViewsSearchFilterSorting({
       ]);
     }
   }, [data]); // Chạy lại khi `data` thay đổi
+
   const deleteView = (index: number) => {
     const newItemStrings = [...itemStrings];
     newItemStrings.splice(index, 1);
@@ -144,7 +157,7 @@ export function IndexTableWithViewsSearchFilterSorting({
     undefined
   );
   const [taggedWith, setTaggedWith] = useState("");
-  const [queryValue, setQueryValue] = useState("");
+  // const [queryValue, setQueryValue] = useState("ff");
 
   const handleAccountStatusChange = useCallback(
     (value: string[]) => setAccountStatus(value),
@@ -158,10 +171,10 @@ export function IndexTableWithViewsSearchFilterSorting({
     (value: string) => setTaggedWith(value),
     []
   );
-  const handleFiltersQueryChange = useCallback(
-    (value: string) => setQueryValue(value),
-    []
-  );
+  const handleFiltersQueryChange = useCallback((value: string) => {
+    setSearchKeyword(value);
+    setCurrentPage(1);
+  }, []);
   const handleAccountStatusRemove = useCallback(
     () => setAccountStatus(undefined),
     []
@@ -171,7 +184,7 @@ export function IndexTableWithViewsSearchFilterSorting({
     []
   );
   const handleTaggedWithRemove = useCallback(() => setTaggedWith(""), []);
-  const handleQueryValueRemove = useCallback(() => setQueryValue(""), []);
+  const handleQueryValueRemove = useCallback(() => setSearchKeyword(""), []);
   const handleFiltersClearAll = useCallback(() => {
     handleAccountStatusRemove();
     handleMoneySpentRemove();
@@ -293,10 +306,62 @@ export function IndexTableWithViewsSearchFilterSorting({
       submition: item?.submition || 0,
     };
   });
+
   const resourceName = {
     singular: "order",
     plural: "orders",
   };
+  const [toast, SetToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const handleDeleteItems = async () => {
+    try {
+      const res = await fetch("/api/product/delete-items-check-box", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json", // Cần thêm
+        },
+        body: JSON.stringify(selectedResources),
+      });
+      const result = await res?.json();
+      const newData = data.filter(
+        (item: any) => !selectedResources.includes(item.id)
+      );
+      setData(newData);
+      selectedResources.length = 0;
+      SetToast(true); // Bật Toast
+      setToastMessage(result.message);
+
+      return true;
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  // Define bulk actions
+  const bulkActions = [
+    {
+      content: "Bulk edit",
+      onAction: () => {
+        console.log("Bulk edit for:", selectedResources);
+        // Implement your bulk edit logic here
+      },
+    },
+    {
+      content: "Set as draft",
+      onAction: () => {
+        console.log("Set as draft for:", selectedResources);
+        // Implement your set as draft logic here
+      },
+    },
+    {
+      content: "Delete",
+      destructive: true,
+      onAction: () => {
+        handleDeleteItems();
+        console.log("Delete items:", selectedResources);
+        // Implement your delete logic here
+      },
+    },
+  ];
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
     useIndexResourceState(orders);
@@ -310,7 +375,7 @@ export function IndexTableWithViewsSearchFilterSorting({
         id={id}
         key={id}
         selected={selectedResources.includes(id)}
-        position={index}
+        position={index} // Cập nhật position dựa trên startIndex
       >
         <IndexTable.Cell>
           <div style={{ display: "flex", alignItems: "center" }}>
@@ -338,13 +403,20 @@ export function IndexTableWithViewsSearchFilterSorting({
 
   return (
     <LegacyCard>
+      {toast && (
+        <ToastWithActionExample
+          title={toastMessage}
+          active={toast}
+          setActive={SetToast}
+        />
+      )}
       <IndexFilters
         sortOptions={sortOptions}
         sortSelected={sortSelected}
-        queryValue={queryValue}
+        queryValue={searchKeyword}
         queryPlaceholder="Searching in all"
         onQueryChange={handleFiltersQueryChange}
-        onQueryClear={() => setQueryValue("")}
+        onQueryClear={() => setSearchKeyword("")}
         onSort={setSortSelected}
         primaryAction={primaryAction}
         cancelAction={{
@@ -370,6 +442,7 @@ export function IndexTableWithViewsSearchFilterSorting({
         selectedItemsCount={
           allResourcesSelected ? "All" : selectedResources.length
         }
+        bulkActions={bulkActions}
         onSelectionChange={handleSelectionChange}
         headings={[
           {
@@ -403,6 +476,18 @@ export function IndexTableWithViewsSearchFilterSorting({
       >
         {rowMarkup}
       </IndexTable>
+      {/* Thêm Pagination component */}
+      {pagination?.total > itemsPerPage && (
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <Pagination
+            hasPrevious={currentPage > 1}
+            onPrevious={() => handlePrevious()}
+            hasNext={currentPage < pagination?.total}
+            onNext={() => handleNext()}
+            label={`Page ${currentPage} of ${pagination?.totalPages}`}
+          />
+        </div>
+      )}
     </LegacyCard>
   );
 

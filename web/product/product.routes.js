@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
   getDbFromShopifyToDB,
+  deleteItemsCheckBox,
 } from "./product.service.js";
 
 const ProductRouters = express.Router();
@@ -13,19 +14,29 @@ const ProductRouters = express.Router();
 // Lấy danh sách sản phẩm
 ProductRouters.get("/", async (req, res) => {
   try {
-    const productsRaw = await getAllProducts();
+    // Lấy page và limit từ query parameters, nếu không có thì dùng giá trị mặc định
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const keyword = req.query.searchKeyword;
+    // Gọi service với các tham số phân trang
+    const result = await getAllProducts(page, limit, keyword);
 
-    // const products = JSON.parse(productsRaw);
-    productsRaw.forEach((element) => {
-      // if (element?.images) {
-      //   element.images = JSON.parse(element.images);
-      //   if (!element?.images[0].id) element.images = [];
-      // }
-      element.images = JSON.parse(element.images);
-      console.log(element.images);
+    // Xử lý dữ liệu images như trước
+    result.products.forEach((element) => {
+      element.images = element.images ? JSON.parse(element.images) : [];
+      if (element.images[0]?.id === null) element.images = [];
     });
 
-    return res.json(productsRaw);
+    // Trả về response với dữ liệu phân trang
+    return res.json({
+      data: result.products,
+      pagination: {
+        total: result.total,
+        currentPage: result.currentPage,
+        totalPages: result.totalPages,
+        limit: limit,
+      },
+    });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch products" });
   }
@@ -106,6 +117,24 @@ ProductRouters.put("/sync-products", async (req, res) => {
     // }
 
     const synceddProducts = await getDbFromShopifyToDB(session);
+    return res.json(synceddProducts);
+  } catch (error) {
+    res.status(500).json({ error: "Error updating product" });
+  }
+});
+
+// synced products
+ProductRouters.put("/delete-items-check-box", async (req, res) => {
+  const session = res.locals.shopify.session;
+  const productIds = req.body;
+  console.log(productIds);
+  // Mảng sản phẩm từ request
+  try {
+    // if (Object.keys(products).length === 0) {
+    //   return res.status(400).json({ error: "No fields provided for update" });
+    // }
+
+    const synceddProducts = await deleteItemsCheckBox(session, productIds);
     return res.json(synceddProducts);
   } catch (error) {
     res.status(500).json({ error: "Error updating product" });

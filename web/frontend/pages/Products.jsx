@@ -16,6 +16,7 @@ export default function Products() {
   const { t } = useTranslation();
   const [data, setData] = useState([]);
   const [additionalData, setAdditionalData] = useState();
+  const [pagination, setPagination] = useState();
   // useEffect(() => {
   //   getDataFromShopify();
   // }, []);
@@ -29,13 +30,23 @@ export default function Products() {
       console.log(err);
     }
   };
+  // Thêm state cho phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Số item mỗi trang, bạn có thể điều chỉnh
+  const [searchKeyword, setSearchKeyword] = useState("");
   const getData = async () => {
+    const queryString = new URLSearchParams({
+      page: currentPage,
+      limit: itemsPerPage,
+      searchKeyword: searchKeyword,
+    }).toString();
     try {
-      const res = await fetch("/api/product", { method: "GET" });
+      const res = await fetch(`/api/product?${queryString}`, { method: "GET" });
       const result = await res.json();
       console.log("result", result);
-      setData(result);
+      setData(result?.data);
       setAdditionalData(result?.additional);
+      setPagination(result?.pagination);
     } catch (err) {
       console.log(err);
     }
@@ -51,9 +62,24 @@ export default function Products() {
       console.log(err);
     }
   };
+
+  // Tính toán các giá trị phân trang
+  // const totalItems = pagination?.total;
+  // const totalPages = Math.ceil(totalItems / itemsPerPage);
+  // const startIndex = (currentPage - 1) * itemsPerPage;
+  // const endIndex = startIndex + itemsPerPage;
+
+  // Hàm xử lý chuyển trang
+  const handlePrevious = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, pagination?.totalPages));
+  };
   useEffect(() => {
     getData();
-  }, []);
+  }, [currentPage, itemsPerPage, searchKeyword]);
   const getLogginGG = async () => {
     try {
       window.open(
@@ -67,29 +93,39 @@ export default function Products() {
     }
   };
   return (
-    <>
-      <Button onClick={() => getSyncedData()}>OK</Button>
-    </>
-    // <ProductPage>
-    //   <div style={{ marginBottom: "20px" }}>
-    //     <ButtonGroup>
-    //       {data?.length && (
-    //         <Button onClick={getDataFromShopifySaveToDB}>
-    //           Get data from shopify save to db
-    //         </Button>
-    //       )}
+    // <>
+    //   <Button onClick={() => getSyncedData()}>OK</Button>
+    // </>
+    <ProductPage>
+      <div style={{ marginBottom: "20px" }}>
+        <ButtonGroup>
+          {data?.length && (
+            <Button onClick={getDataFromShopifySaveToDB}>
+              Get data from shopify save to db
+            </Button>
+          )}
 
-    //       {/* <Button>Get data</Button> */}
-    //     </ButtonGroup>
-    //   </div>
-    //   <Layout>
-    //     <Layout.Section>
-    //       <IndexTableWithViewsSearchFilterSorting
-    //         data={data}
-    //         additionalData={additionalData}
-    //       />
-    //     </Layout.Section>
-    //   </Layout>
-    // </ProductPage>
+          {/* <Button>Get data</Button> */}
+        </ButtonGroup>
+      </div>
+      <Layout>
+        <Layout.Section>
+          <IndexTableWithViewsSearchFilterSorting
+            data={data}
+            setData={setData}
+            additionalData={additionalData}
+            pagination={pagination}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            handlePrevious={handlePrevious}
+            handleNext={handleNext}
+            searchKeyword={searchKeyword}
+            setSearchKeyword={setSearchKeyword}
+          />
+        </Layout.Section>
+      </Layout>
+    </ProductPage>
   );
 }

@@ -7,6 +7,7 @@ import { QueryProvider, PolarisProvider } from "./components";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import DetailProduct from "./pages/DetailProduct";
+import GMCSettingsPage from "./pages/SyncDataToMCT";
 export default function App() {
   // Any .tsx or .jsx files in /pages will become a route
   // See documentation for <Routes /> for more info
@@ -23,6 +24,7 @@ export default function App() {
             <a href="/">Dashboard</a>
             <a href="/product">Product</a>
             <a href="/detail-product">Detail product</a>
+            <a href="/gmc-setting">GMC settings</a>
             {/* <a href="/dashboard">{t("NavigationMenu.dashboard")}</a>
             <a href="/feeds">{t("NavigationMenu.feeds")}</a>
             <a href="/generalSettings">{t("NavigationMenu.generalSettings")}</a>
@@ -40,6 +42,7 @@ export default function App() {
               element={<DetailProduct />}
             ></Route>
             <Route path="" element={<Dashboard />}></Route>
+            <Route path="/gmc-setting" element={<GMCSettingsPage />}></Route>
           </Routes>
         </QueryProvider>
       </BrowserRouter>
