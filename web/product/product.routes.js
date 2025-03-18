@@ -8,7 +8,7 @@ import {
   getDbFromShopifyToDB,
   deleteItemsCheckBox,
 } from "./product.service.js";
-
+import { OAuth2Client } from "google-auth-library";
 const ProductRouters = express.Router();
 
 // Lấy danh sách sản phẩm
@@ -41,7 +41,35 @@ ProductRouters.get("/", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch products" });
   }
 });
+const clientID = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const sessionSecret = process.env.SESSION_SECRET;
+ProductRouters.get("/google", (req, res) => {
+  // Lưu URL gốc để quay lại sau khi đăng nhập Google
+  // req.session.returnTo = "/sync-to-gmc";
+  console.log(res.locals.shopify.session);
+  // Tạo URL Google OAuth thủ công để điều hướng top-level
+  const oauth2Client = new OAuth2Client({
+    clientId: clientID,
+    clientSecret: clientSecret,
+    redirectUri:
+      "https://casting-halifax-handhelds-measured.trycloudflare.com/api/google/callback",
+  });
 
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: [
+      "profile",
+      "email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/content",
+    ],
+  });
+
+  // Dùng App Bridge để điều hướng top-level (hoặc mở tab mới)
+  return res.json(authUrl);
+});
 // Lấy sản phẩm theo ID
 ProductRouters.get("/:id", async (req, res) => {
   try {

@@ -80,18 +80,7 @@ export default function Products() {
   useEffect(() => {
     getData();
   }, [currentPage, itemsPerPage, searchKeyword]);
-  const getLogginGG = async () => {
-    try {
-      window.open(
-        "https://c4ae-58-187-12-32.ngrok-free.app/auth/google",
-        "_blank"
-      );
 
-      return;
-    } catch (err) {
-      console.log("err", err);
-    }
-  };
   return (
     // <>
     //   <Button onClick={() => getSyncedData()}>OK</Button>
@@ -100,7 +89,7 @@ export default function Products() {
       <div style={{ marginBottom: "20px" }}>
         <ButtonGroup>
           {data?.length && (
-            <Button onClick={getDataFromShopifySaveToDB}>
+            <Button onClick={getSyncedData}>
               Get data from shopify save to db
             </Button>
           )}

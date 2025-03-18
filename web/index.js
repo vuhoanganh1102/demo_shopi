@@ -14,7 +14,42 @@ import PrivacyWebhookHandlers from "./privacy.js";
 import dbMySQL from "./config/db.js";
 import cors from "cors";
 import ProductRouters from "./product/product.routes.js";
+import ggCloudRouter from "./gg_cloud/ggCloud.routes.js";
+import { google } from "googleapis";
+import * as crypto from "crypto";
+import session from "express-session";
+import { saveInforUserToDB } from "./gg_cloud/ggCloudService.service.js";
+import ggCloudRouters from "./gg_cloud/ggCloud.routes.js";
+// @ts-ignore
+const clientID = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const sessionSecret = process.env.SESSION_SECRET;
+const merchantCenterId = process.env.MECHANT_CENTER_ID;
 dotenv.config();
+
+/**
+ * To use OAuth2 authentication, we need access to a CLIENT_ID, CLIENT_SECRET, AND REDIRECT_URI
+ * from the client_secret.json file. To get these credentials for your application, visit
+ * https://console.cloud.google.com/apis/credentials.
+ */
+const oauth2Client = new google.auth.OAuth2(
+  clientID,
+  clientSecret,
+  "https://attract-lay-compatibility-municipal.trycloudflare.com/api/google/callback"
+);
+
+// Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
+const scopes = [
+  "https://www.googleapis.com/auth/userinfo.profile", // Thông tin cá nhân chi tiết
+  "https://www.googleapis.com/auth/userinfo.email", // Email chi tiết
+  "https://www.googleapis.com/auth/content", // Quyền quản lý Google Merchant Center
+];
+
+// Generate a secure random state value.
+const state = crypto.randomBytes(32).toString("hex");
+// Store state in the session
+// req.session.state = state;
+
 // @ts-ignore
 const PORT = parseInt(
   // @ts-ignore
@@ -31,11 +66,109 @@ const STATIC_PATH =
       `${process.cwd()}/frontend/`;
 
 const app = express();
+// Cấu hình session
+app.use(
+  session({
+    secret: "default-secret", // Thay thế 'your-secret-key' bằng chuỗi bảo mật của bạn
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false }, // Đặt `secure: true` nếu dùng HTTPS
+  })
+);
 // @ts-ignore
 // @ts-ignore
 app.use(cors());
+// @ts-ignore
+app.use(express.json());
 // Set up Shopify authentication and webhook handling
 // @ts-ignore
+// Route callback từ Google
+let userCredential;
+app.get(
+  "/api/google/callback",
+  // passport.authenticate("google", { failureRedirect: "/" }),
+  // @ts-ignore
+  async (req, res) => {
+    const q = req.query;
+    console.log(q.state);
+    console.log(req.session);
+    // @ts-ignore
+    const [state, shopifyName] = q.state.split("|"); // Tách state và shopify_name
+
+    // if (!state || !shopifyName) {
+    //   console.log("Invalid state format");
+    //   return res.status(403).send("Invalid state format");
+    // }
+    if (q.error) {
+      // An error response e.g. error=access_denied
+      console.log("Error:" + q.error);
+    } else if (!state || !shopifyName) {
+      //check state value
+      console.log("State mismatch. Possible CSRF attack");
+      res.end("State mismatch. Possible CSRF attack");
+    } else {
+      console.log(q);
+      // Get access and refresh tokens (if access_type is offline)
+      // @ts-ignore
+      let { tokens } = await oauth2Client.getToken(q.code);
+      oauth2Client.setCredentials(tokens);
+      console.log(tokens);
+      /** Save credential to the global variable in case access token was refreshed.
+       * ACTION ITEM: In a production app, you likely want to save the refresh token
+       *              in a secure persistent database instead. */
+      userCredential = tokens;
+
+      // User authorized the request. Now, check which scopes were granted.
+      if (tokens.scope.includes("https://www.googleapis.com/auth/content")) {
+        // User authorized read-only Drive activity permission.
+        // Example of using Google Drive API to list filenames in user's Drive.
+        // insertProductsToMerchantCenter(m);
+        console.log("yes");
+        // try {
+        //   const url = `https://shoppingcontent.googleapis.com/content/v2.1/${merchantCenterId}/products`;
+
+        //   const response = await fetch(url, {
+        //     method: "GET", // Hoặc 'POST' nếu cần gửi dữ liệu
+        //     headers: {
+        //       Authorization: `Bearer ${tokens.access_token}`, // Gửi token trong header
+        //       "Content-Type": "application/json", // Đảm bảo đúng định dạng dữ liệu
+        //     },
+        //   });
+
+        //   const data = await response.json();
+        //   console.log("Products:", data);
+        //   return data;
+        // } catch (error) {
+        //   console.error("API call error:", error);
+        // }
+      }
+      if (
+        tokens.scope.includes(
+          "https://www.googleapis.com/auth/userinfo.profile"
+        ) &&
+        tokens.scope.includes("https://www.googleapis.com/auth/userinfo.email")
+      ) {
+        // console.log("check", shopifyName);
+        // @ts-ignore
+        saveInforUserToDB(tokens.access_token, shopifyName);
+      }
+      return res.send(`<div>Successfull</div>`);
+      // res.send("<script>window.close();</script>");
+      // Check if user authorized Calendar read permission.
+      // if (
+      //   tokens.scope.includes(
+      //     "https://www.googleapis.com/auth/calendar.readonly"
+      //   )
+      // ) {
+      //   // User authorized Calendar read permission.
+      //   // Calling the APIs, etc.
+      // } else {
+      //   // User didn't authorize Calendar read permission.
+      //   // Update UX and application accordingly
+      // }
+    }
+  }
+);
 app.get(shopify.config.auth.path, shopify.auth.begin());
 // @ts-ignore
 app.get(
@@ -54,9 +187,6 @@ app.post(
 
 // @ts-ignore
 app.use("/api/*", shopify.validateAuthenticatedSession());
-
-// @ts-ignore
-app.use(express.json());
 
 // @ts-ignore
 app.get("/api/products/count", async (_req, res) => {
@@ -107,6 +237,27 @@ app.get("/api/products", async (_req, res) => {
 });
 // @ts-ignore
 app.use("/api/product", ProductRouters);
+app.use("/api/gg-route", ggCloudRouters);
+// @ts-ignore
+app.get("/api/google", (req, res) => {
+  // req.session["state"] = state;
+  const shopifyName = res.locals.shopify.session.shop;
+  // Mã hóa shopifyName vào state hoặc thêm query parameter riêng
+  const encodedState = `${state}|${shopifyName}`; // Kết hợp state và shopify_name
+  // Generate a url that asks permissions for the Drive activity and Google Calendar scope
+  const authorizationUrl = oauth2Client.generateAuthUrl({
+    // 'online' (default) or 'offline' (gets refresh_token)
+    access_type: "offline",
+    /** Pass in the scopes array defined above.
+     * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
+    scope: scopes,
+    // Enable incremental authorization. Recommended as a best practice.
+    include_granted_scopes: true,
+    // Include the state parameter to reduce the risk of CSRF attacks.
+    state: encodedState,
+  });
+  return res.json(authorizationUrl);
+});
 // @ts-ignore
 app.use(shopify.cspHeaders());
 // @ts-ignore
