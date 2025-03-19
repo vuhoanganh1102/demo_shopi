@@ -421,54 +421,61 @@ export const getDbFromShopifyToDB = async (session) => {
     ` query {
     products(first: 100 ${lastCursor ? `, after: "${lastCursor}"` : ""}) {
       edges {
-        node {
-          id
-          title
-          category {
-            id
-            fullName
-          }
-          createdAt
-          description
-          descriptionHtml
-          media(first: 100) {
-            edges {
-              node {
+            node {
+              id
+              title
+              category {
                 id
-                mediaContentType
-                status
-                ... on MediaImage {
-                  originalSource {
-                    url
+                fullName
+              }
+              createdAt
+              description
+              descriptionHtml
+              media(first: 100) {
+                edges {
+                  node {
+                    id
+                    mediaContentType
+                    status
+                    preview{
+                      image{
+                        id
+                        url
+                      }
+                    }
                   }
                 }
               }
-            }
-          }
-
-          onlineStoreUrl
-          status
-          totalInventory
-          variants(first: 100) {
-            edges {
-              node {
-                id
-                price
-                barcode
-                inventoryQuantity
-                displayName
-                title
+              onlineStoreUrl
+              status
+              totalInventory
+              options {
+                name
+                values
               }
+              variants(first: 100) {
+                edges {
+                  node {
+                    id
+                    price
+                    barcode
+                    inventoryQuantity
+                    displayName
+                    title
+                    taxCode
+                    __typename
+                    sku
+                  }
+                }
+              }
+              vendor
+              handle
             }
+            cursor
           }
-          vendor
-          handle
-        }
-        cursor
-      }
-      pageInfo {
-        hasNextPage
-      }
+          pageInfo {
+            hasNextPage
+          }
     }
   }
 `
@@ -512,7 +519,7 @@ export const getDbFromShopifyToDB = async (session) => {
       );
       if (product?.media?.edges.length > 0) {
         for (const e of product?.media.edges) {
-          if (e.node?.originalSource?.url) {
+          if (e.node?.preview?.image?.url) {
             await connection.query(
               `INSERT INTO xipat_init.product_media (id, url, product_id)
            VALUES (?, ?, ?)
@@ -520,7 +527,7 @@ export const getDbFromShopifyToDB = async (session) => {
            url = VALUES(url), product_id = VALUES(product_id)`,
               [
                 Number(stringSplitId(e.node.id)),
-                e.node?.originalSource?.url || null,
+                e.node?.preview?.image?.url || null,
                 Number(stringSplitId(product.id)),
               ]
             );

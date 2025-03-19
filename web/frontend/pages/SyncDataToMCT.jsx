@@ -84,11 +84,26 @@ export default function GMCSettingsPage() {
     }
   };
 
-  const handleResync = () => {
-    // Implement resync logic here
-    console.log("Resyncing products...");
+  const handleResync = async () => {
+    try {
+      const res = await fetch("/api/google-sync-mct", { method: "POST" });
+      const result = await res.json();
+      return result;
+    } catch (err) {
+      console.log(err);
+    }
   };
-
+  const handleResyncFromGGToDb = async () => {
+    try {
+      const res = await fetch("/api/gg-route/sync-status-from-gg-to-db", {
+        method: "GET",
+      });
+      const result = await res.json();
+      return result;
+    } catch (err) {
+      console.log(err);
+    }
+  };
   return (
     <Page title="Sync to GMC settings">
       <Layout>
@@ -431,7 +446,7 @@ export default function GMCSettingsPage() {
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <Button onClick={handleResync}>
+                    <Button onClick={() => handleResync()}>
                       <span style={{ display: "flex", alignItems: "center" }}>
                         <svg
                           width="16"
@@ -451,6 +466,30 @@ export default function GMCSettingsPage() {
                           />
                         </svg>
                         Re-sync
+                      </span>
+                    </Button>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Button onClick={() => handleResyncFromGGToDb()}>
+                      <span style={{ display: "flex", alignItems: "center" }}>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          style={{ marginRight: "8px" }}
+                        >
+                          <path
+                            d="M3.5 10C3.5 6.41015 6.41015 3.5 10 3.5C12.3069 3.5 14.3554 4.6825 15.4782 6.46832C15.6646 6.76478 16.0391 6.87702 16.3355 6.69061C16.632 6.5042 16.7442 6.12975 16.5578 5.83329C15.2119 3.64607 12.7511 2.25 10 2.25C5.71979 2.25 2.25 5.71979 2.25 10C2.25 11.4354 2.63424 12.7763 3.30301 13.9171L2.03239 13.4229C1.70869 13.3035 1.35176 13.4678 1.23239 13.7915C1.11302 14.1152 1.27731 14.4721 1.60101 14.5915L4.60101 15.5915C4.7282 15.6364 4.86455 15.6401 4.99416 15.6022C5.12377 15.5643 5.24035 15.4865 5.32682 15.3786C5.41329 15.2708 5.46511 15.1379 5.47539 14.9981C5.48567 14.8584 5.45391 14.7187 5.38388 14.5982L4.38388 12.9325C4.22659 12.6328 3.85654 12.5184 3.55688 12.6757C3.25723 12.833 3.14275 13.203 3.30004 13.5027L3.6566 14.0368C3.07004 12.8355 2.75 11.4562 2.75 10H3.5Z"
+                            fill="#5C5F62"
+                          />
+                          <path
+                            d="M16.6971 6.08295L17.9677 6.57714C18.2914 6.69651 18.6483 6.53222 18.7677 6.20852C18.8871 5.88482 18.7228 5.52789 18.3991 5.40852L15.3991 4.40852C15.2719 4.36361 15.1356 4.35994 15.006 4.39781C14.8764 4.43568 14.7598 4.51352 14.6733 4.62135C14.5868 4.72918 14.535 4.86211 14.5247 5.00186C14.5144 5.14161 14.5462 5.28131 14.6162 5.40181L15.6162 7.06752C15.7735 7.36718 16.1436 7.48166 16.4432 7.32437C16.7429 7.16708 16.8574 6.79703 16.7001 6.49737L16.3435 5.96327C16.93 7.16461 17.25 8.54387 17.25 10H16.5C16.5 13.5899 13.5899 16.5 10 16.5C7.69323 16.5 5.64481 15.3176 4.52197 13.5319C4.33556 13.2354 3.96111 13.1232 3.66465 13.3096C3.36819 13.496 3.25595 13.8705 3.44236 14.1669C4.78819 16.354 7.24906 17.75 10 17.75C14.2802 17.75 17.75 14.2802 17.75 10C17.75 8.56463 17.3658 7.22373 16.6971 6.08295Z"
+                            fill="#5C5F62"
+                          />
+                        </svg>
+                        Re-sync product from gg to db
                       </span>
                     </Button>
                   </div>

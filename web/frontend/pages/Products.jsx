@@ -17,6 +17,7 @@ export default function Products() {
   const [data, setData] = useState([]);
   const [additionalData, setAdditionalData] = useState();
   const [pagination, setPagination] = useState();
+  const [synced, setSynced] = useState(false);
   // useEffect(() => {
   //   getDataFromShopify();
   // }, []);
@@ -58,6 +59,7 @@ export default function Products() {
       console.log("result", result);
       setData(result);
       setAdditionalData(result?.additional);
+      setSynced((prev) => !prev);
     } catch (err) {
       console.log(err);
     }
@@ -79,7 +81,7 @@ export default function Products() {
   };
   useEffect(() => {
     getData();
-  }, [currentPage, itemsPerPage, searchKeyword]);
+  }, [currentPage, itemsPerPage, searchKeyword, synced]);
 
   return (
     // <>
@@ -89,7 +91,7 @@ export default function Products() {
       <div style={{ marginBottom: "20px" }}>
         <ButtonGroup>
           {data?.length && (
-            <Button onClick={getSyncedData}>
+            <Button onClick={() => getSyncedData()}>
               Get data from shopify save to db
             </Button>
           )}

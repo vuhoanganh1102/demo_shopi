@@ -18,13 +18,17 @@ import ggCloudRouter from "./gg_cloud/ggCloud.routes.js";
 import { google } from "googleapis";
 import * as crypto from "crypto";
 import session from "express-session";
-import { saveInforUserToDB } from "./gg_cloud/ggCloudService.service.js";
+import {
+  insertProductToGMC,
+  saveInforUserToDB,
+} from "./gg_cloud/ggCloudService.service.js";
 import ggCloudRouters from "./gg_cloud/ggCloud.routes.js";
 // @ts-ignore
 const clientID = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const sessionSecret = process.env.SESSION_SECRET;
 const merchantCenterId = process.env.MECHANT_CENTER_ID;
+const redirectUrlGG = process.env.REDIRECT_URL_GG;
 dotenv.config();
 
 /**
@@ -35,7 +39,7 @@ dotenv.config();
 const oauth2Client = new google.auth.OAuth2(
   clientID,
   clientSecret,
-  "https://attract-lay-compatibility-municipal.trycloudflare.com/api/google/callback"
+  redirectUrlGG
 );
 
 // Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
@@ -150,7 +154,12 @@ app.get(
       ) {
         // console.log("check", shopifyName);
         // @ts-ignore
-        saveInforUserToDB(tokens.access_token, shopifyName);
+        saveInforUserToDB(
+          tokens.access_token,
+          shopifyName,
+          tokens?.refresh_token,
+          tokens.expiry_date
+        );
       }
       return res.send(`<div>Successfull</div>`);
       // res.send("<script>window.close();</script>");
@@ -255,10 +264,25 @@ app.get("/api/google", (req, res) => {
     include_granted_scopes: true,
     // Include the state parameter to reduce the risk of CSRF attacks.
     state: encodedState,
+    prompt: "consent",
   });
   return res.json(authorizationUrl);
 });
 // @ts-ignore
+app.post("/api/google-sync-mct", async (req, res) => {
+  const session = res.locals.shopify.session;
+  try {
+    const response = await insertProductToGMC(session, merchantCenterId, {
+      clientID,
+      clientSecret,
+      redirectUrlGG,
+    });
+    return res.json(response);
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+});
 app.use(shopify.cspHeaders());
 // @ts-ignore
 app.use(serveStatic(STATIC_PATH, { index: false }));
