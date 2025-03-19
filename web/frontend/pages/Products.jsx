@@ -46,8 +46,17 @@ export default function Products() {
       const result = await res.json();
       console.log("result", result);
       setData(result?.data);
-      setAdditionalData(result?.additional);
-      setPagination(result?.pagination);
+      setAdditionalData({
+        pendingCount: result?.pendingCount, // Đếm sản phẩm có trạng thái 'pending'
+        disapprovedCount: result?.disapprovedCount, // Đếm sản phẩm có trạng thái 'disapproved'
+        approvedCount: result?.approvedCount,
+        total: result?.total,
+      });
+      setPagination({
+        total: result?.total,
+        currentPage: result?.currentPage,
+        totalPages: result?.totalPages,
+      });
     } catch (err) {
       console.log(err);
     }

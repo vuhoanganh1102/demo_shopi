@@ -543,3 +543,15 @@ WHERE id IN (${ids.map(() => "?").join(", ")});
     throw err;
   }
 };
+
+export const logoutAccount = async (session) => {
+  try {
+    await dbMySQL.query(`DELETE FROM google_account_token WHERE shop = ?;`, [
+      session.shop,
+    ]);
+    return { successfull: true };
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};

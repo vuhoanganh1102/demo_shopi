@@ -43,9 +43,9 @@ export function IndexTableWithViewsSearchFilterSorting({
   useEffect(() => {
     if (data) {
       setItemStrings([
-        `All (${data?.length})`,
-        `Submitted (${additionalData?.submittedCount})`,
-        `In queue (${data?.length - additionalData?.submittedCount})`,
+        `All (${additionalData?.total})`,
+        `Submitted (${additionalData?.approvedCount})`,
+        `In queue (${additionalData?.pendingCount})`,
       ]);
     }
   }, [data]); // Chạy lại khi `data` thay đổi
@@ -301,9 +301,8 @@ export function IndexTableWithViewsSearchFilterSorting({
       id: item.id,
       product: item?.title || "",
       imageUrl: !item?.images ? "" : item?.images[0]?.url,
-      ggProductCategory: item?.category || null,
+      ggProductCategory: item?.ggCategoryStatus || "pending",
       lastUpdate: formatDate(item?.updatedAt) || "",
-      submition: item?.submition || 0,
     };
   });
 
@@ -385,15 +384,19 @@ export function IndexTableWithViewsSearchFilterSorting({
             </div>
           </div>
         </IndexTable.Cell>
-        <IndexTable.Cell>{ggProductCategory}</IndexTable.Cell>
-        <IndexTable.Cell>{lastUpdate}</IndexTable.Cell>
         <IndexTable.Cell>
-          {submition === 1 ? (
-            <Badge tone="attention">Submitted</Badge>
-          ) : (
+          {" "}
+          {ggProductCategory === "disapproved" ? (
+            <Badge tone="critical">disapproved</Badge>
+          ) : ggProductCategory === "pending" ? (
             <Badge>In queue</Badge>
+          ) : ggProductCategory === "approved" ? (
+            <Badge tone="attention">approved</Badge>
+          ) : (
+            ""
           )}
         </IndexTable.Cell>
+        <IndexTable.Cell>{lastUpdate}</IndexTable.Cell>
         <IndexTable.Cell>
           <Button onClick={() => onClickDetail(id)}> Detail</Button>
         </IndexTable.Cell>

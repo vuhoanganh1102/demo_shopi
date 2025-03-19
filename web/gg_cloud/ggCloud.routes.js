@@ -1,6 +1,10 @@
 // @ts-ignore
 import express from "express";
-import { getInfor, getStatusProductsFromGG } from "./ggCloudService.service.js";
+import {
+  getInfor,
+  getStatusProductsFromGG,
+  logoutAccount,
+} from "./ggCloudService.service.js";
 
 const ggCloudRouters = express.Router();
 const merchantCenterId = process.env.MECHANT_CENTER_ID;
@@ -27,6 +31,17 @@ ggCloudRouters.get("/sync-status-from-gg-to-db", async (req, res) => {
       clientSecret,
       redirectUrlGG,
     });
+    return res.json(response);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+ggCloudRouters.get("/disconnect", async (req, res) => {
+  const session = res.locals.shopify.session;
+
+  try {
+    const response = await logoutAccount(session);
     return res.json(response);
   } catch (err) {
     console.log(err);

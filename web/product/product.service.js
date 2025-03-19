@@ -25,6 +25,7 @@ export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
         p.created_at AS createdAt,
         p.update_at AS updatedAt,
         p.user_id AS userId,
+        p.gg_category_status AS ggCategoryStatus,
         CONCAT(
           '[', 
           GROUP_CONCAT(
@@ -46,20 +47,36 @@ export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
     );
 
     // Query để lấy tổng số sản phẩm (áp dụng tìm kiếm nếu có)
-    const [totalRows] = await connection.query(
-      `
+    const [totalRows, statusCounts] = await Promise.all([
+      connection.query(
+        `
       SELECT COUNT(*) as total 
       FROM xipat_init.products
-      ${keyword ? searchCondition : ""}
+      ${searchCondition}
+      `, // Bind params cho câu query này
+        [...searchValue]
+      ),
+      connection.query(
+        `
+      SELECT
+        SUM(CASE WHEN gg_category_status = 'pending' THEN 1 ELSE 0 END) AS pendingCount,
+        SUM(CASE WHEN gg_category_status = 'disapproved' THEN 1 ELSE 0 END) AS disapprovedCount,
+        SUM(CASE WHEN gg_category_status = 'approved' THEN 1 ELSE 0 END) AS approvedCount
+      FROM xipat_init.products
+      ${searchCondition}
       `,
-      searchValue // Bind params cho câu query này
-    );
+        [...searchValue] // Bind params cho câu query này
+      ),
+    ]);
 
     return {
-      products: rows,
-      total: totalRows[0].total,
+      data: rows,
+      total: totalRows[0][0].total,
       currentPage: page,
-      totalPages: Math.ceil(totalRows[0].total / limit),
+      totalPages: Math.ceil(totalRows[0][0].total / limit),
+      pendingCount: statusCounts[0][0].pendingCount, // Đếm sản phẩm có trạng thái 'pending'
+      disapprovedCount: statusCounts[0][0].disapprovedCount, // Đếm sản phẩm có trạng thái 'disapproved'
+      approvedCount: statusCounts[0][0].approvedCount,
     };
   } catch (error) {
     console.log(error);
@@ -85,6 +102,7 @@ export const getProductById = async (id) => {
     p.created_at AS createdAt,
     p.update_at AS updatedAt,
     p.user_id AS userId,
+    p.gg_category_status AS ggCategoryStatus
     CONCAT(
       '[', 
       GROUP_CONCAT(DISTINCT

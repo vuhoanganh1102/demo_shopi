@@ -26,7 +26,7 @@ export default function GMCSettingsPage() {
   const [syncTime, setSyncTime] = useState("12:00 AM");
   const [isConnected, setIsConnected] = useState(false);
   const [userName, setUserName] = useState("");
-  const [merchantCenterId, setMerchantCenterId] = useState("");
+  const [merchantCenterId, setMerchantCenterId] = useState("5550049490");
   const [activeView, setActiveView] = useState("account"); // "account" or "product"
   const [productSelection, setProductSelection] = useState("all"); // "all", "include", or "exclude"
   const [picture, setPicture] = useState("");
@@ -76,9 +76,10 @@ export default function GMCSettingsPage() {
   const disconnectAccount = async () => {
     try {
       // Implement your disconnect logic here
-      // await fetch("/api/gg-route/disconnect", { method: "POST" });
+      await fetch("/api/gg-route/disconnect", { method: "GET" });
       setIsConnected(false);
       setUserName("");
+      setEmail("");
     } catch (err) {
       console.log(err);
     }

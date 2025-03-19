@@ -161,8 +161,16 @@ app.get(
           tokens.expiry_date
         );
       }
-      return res.send(`<div>Successfull</div>`);
-      // res.send("<script>window.close();</script>");
+
+      res.send(`
+        <script>
+          // Kiểm tra xem cửa sổ cha có tồn tại hay không
+          if (window.opener) {
+            window.opener.location.reload();  // Làm mới trang cũ (cửa sổ cha)
+          }
+          window.close();  // Đóng tab hiện tại
+        </script>
+      `);
       // Check if user authorized Calendar read permission.
       // if (
       //   tokens.scope.includes(
@@ -250,7 +258,10 @@ app.use("/api/gg-route", ggCloudRouters);
 // @ts-ignore
 app.get("/api/google", (req, res) => {
   // req.session["state"] = state;
+
   const shopifyName = res.locals.shopify.session.shop;
+  console.log(state);
+  console.log(shopifyName);
   // Mã hóa shopifyName vào state hoặc thêm query parameter riêng
   const encodedState = `${state}|${shopifyName}`; // Kết hợp state và shopify_name
   // Generate a url that asks permissions for the Drive activity and Google Calendar scope

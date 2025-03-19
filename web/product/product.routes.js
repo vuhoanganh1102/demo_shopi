@@ -22,21 +22,13 @@ ProductRouters.get("/", async (req, res) => {
     const result = await getAllProducts(page, limit, keyword);
 
     // Xử lý dữ liệu images như trước
-    result.products.forEach((element) => {
+    result.data.forEach((element) => {
       element.images = element.images ? JSON.parse(element.images) : [];
       if (element.images[0]?.id === null) element.images = [];
     });
 
     // Trả về response với dữ liệu phân trang
-    return res.json({
-      data: result.products,
-      pagination: {
-        total: result.total,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        limit: limit,
-      },
-    });
+    return res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch products" });
   }
