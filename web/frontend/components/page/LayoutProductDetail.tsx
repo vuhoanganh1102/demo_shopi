@@ -78,6 +78,7 @@ export function LayoutProductDetail({ data, setData }) {
         changes[key] = updated[key];
       }
     }
+    changes["variants"] = variants;
     return changes;
   };
   console.log("data", data);

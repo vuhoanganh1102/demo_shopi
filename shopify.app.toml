@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "5cfff45a6a4c594436bb3cddb634a31a"
-application_url = "https://def-groundwater-attended-highlighted.trycloudflare.com"
+application_url = "https://harold-reception-journalism-impact.trycloudflare.com"
 embedded = true
 name = "demo-shopi"
 handle = "demo-shopi-2"
@@ -27,9 +27,9 @@ scopes = "read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://def-groundwater-attended-highlighted.trycloudflare.com/auth/callback",
-  "https://def-groundwater-attended-highlighted.trycloudflare.com/auth/shopify/callback",
-  "https://def-groundwater-attended-highlighted.trycloudflare.com/api/auth/callback"
+  "https://harold-reception-journalism-impact.trycloudflare.com/auth/callback",
+  "https://harold-reception-journalism-impact.trycloudflare.com/auth/shopify/callback",
+  "https://harold-reception-journalism-impact.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

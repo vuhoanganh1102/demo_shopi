@@ -33,6 +33,7 @@ export function IndexTableWithViewsSearchFilterSorting({
   handleNext,
   searchKeyword,
   setSearchKeyword,
+  setFilterStatus,
 }) {
   console.log("data", data);
   const [all, setAll] = useState(data?.length || 0);
@@ -44,8 +45,9 @@ export function IndexTableWithViewsSearchFilterSorting({
     if (data) {
       setItemStrings([
         `All (${additionalData?.total})`,
-        `Submitted (${additionalData?.approvedCount})`,
-        `In queue (${additionalData?.pendingCount})`,
+        `Approved (${additionalData?.approvedCount || 0})`,
+        `Disapproved (${additionalData?.disapprovedCount || 0})`,
+        `In queue (${additionalData?.pendingCount || 0})`,
       ]);
     }
   }, [data]); // Chạy lại khi `data` thay đổi
@@ -63,11 +65,19 @@ export function IndexTableWithViewsSearchFilterSorting({
     await sleep(1);
     return true;
   };
-
+  const remakeItemString = (status: string) => {
+    const data = status.toLowerCase().split(" ");
+    let result = data[0];
+    if (data[0] === "all") result = "";
+    if (data[0] === "in") result = "pending";
+    return result;
+  };
   const tabs: TabProps[] = itemStrings.map((item, index) => ({
     content: item,
     index,
-    onAction: () => {},
+    onAction: () => {
+      setFilterStatus(remakeItemString(item));
+    },
     id: `${item}-${index}`,
     isLocked: index === 0,
     actions:
@@ -481,7 +491,14 @@ export function IndexTableWithViewsSearchFilterSorting({
       </IndexTable>
       {/* Thêm Pagination component */}
       {pagination?.total > itemsPerPage && (
-        <div style={{ padding: "16px", textAlign: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            padding: "16px 0",
+            width: "100%",
+          }}
+        >
           <Pagination
             hasPrevious={currentPage > 1}
             onPrevious={() => handlePrevious()}

@@ -18,8 +18,9 @@ ProductRouters.get("/", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const keyword = req.query.searchKeyword;
+    const filterStatus = req.query.filterStatus;
     // Gọi service với các tham số phân trang
-    const result = await getAllProducts(page, limit, keyword);
+    const result = await getAllProducts(page, limit, keyword, filterStatus);
 
     // Xử lý dữ liệu images như trước
     result.data.forEach((element) => {
@@ -112,6 +113,7 @@ ProductRouters.patch("/:id", async (req, res) => {
     );
     return res.json(updatedProduct);
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "Error updating product" });
   }
 });

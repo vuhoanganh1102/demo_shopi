@@ -1,16 +1,27 @@
 import dbMySQL from "../config/db.js";
 import shopify from "../shopify.js";
 // Lấy tất cả sản phẩm
-export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
+export const getAllProducts = async (
+  page = 1,
+  limit = 10,
+  keyword = "",
+  filterStatus = ""
+) => {
   const connection = await dbMySQL.getConnection();
   try {
     const offset = (page - 1) * limit;
 
     // Điều kiện tìm kiếm nếu có keyword
-    const searchCondition = keyword ? "WHERE title LIKE ?" : "";
-    const searchValue = keyword ? [`%${keyword}%`] : [];
-
+    let searchCondition = "";
+    searchCondition = keyword ? searchCondition + "AND title LIKE ?" : "";
+    searchCondition = filterStatus
+      ? searchCondition + "AND p.gg_category_status = ?"
+      : "";
+    const searchValue = [];
+    keyword ? searchValue.push(`%${keyword}%`) : [];
+    filterStatus ? searchValue.push(filterStatus) : [];
     // Query lấy danh sách sản phẩm có phân trang + tìm kiếm
+
     const [rows] = await connection.query(
       `
       SELECT 
@@ -39,7 +50,7 @@ export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
         ) AS images
       FROM xipat_init.products p
       LEFT JOIN xipat_init.product_media pm ON pm.product_id = p.id
-      ${searchCondition}
+      WHERE 1=1 ${searchCondition}
       GROUP BY p.id
       LIMIT ? OFFSET ?
       `,
@@ -51,21 +62,21 @@ export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
       connection.query(
         `
       SELECT COUNT(*) as total 
-      FROM xipat_init.products
-      ${searchCondition}
+      FROM xipat_init.products p
+      WHERE 1=1 ${searchCondition}
       `, // Bind params cho câu query này
         [...searchValue]
       ),
       connection.query(
         `
       SELECT
-        SUM(CASE WHEN gg_category_status = 'pending' THEN 1 ELSE 0 END) AS pendingCount,
-        SUM(CASE WHEN gg_category_status = 'disapproved' THEN 1 ELSE 0 END) AS disapprovedCount,
-        SUM(CASE WHEN gg_category_status = 'approved' THEN 1 ELSE 0 END) AS approvedCount
-      FROM xipat_init.products
-      ${searchCondition}
-      `,
-        [...searchValue] // Bind params cho câu query này
+        SUM(CASE WHEN p.gg_category_status = 'pending' THEN 1 ELSE 0 END) AS pendingCount,
+        SUM(CASE WHEN p.gg_category_status = 'disapproved' THEN 1 ELSE 0 END) AS disapprovedCount,
+        SUM(CASE WHEN p.gg_category_status = 'approved' THEN 1 ELSE 0 END) AS approvedCount,
+        SUM(1) AS totalCount
+      FROM xipat_init.products p
+    
+      ` // Bind params cho câu query này
       ),
     ]);
 
@@ -77,6 +88,7 @@ export const getAllProducts = async (page = 1, limit = 10, keyword = "") => {
       pendingCount: statusCounts[0][0].pendingCount, // Đếm sản phẩm có trạng thái 'pending'
       disapprovedCount: statusCounts[0][0].disapprovedCount, // Đếm sản phẩm có trạng thái 'disapproved'
       approvedCount: statusCounts[0][0].approvedCount,
+      totalCount: statusCounts[0][0].totalCount,
     };
   } catch (error) {
     console.log(error);
@@ -102,7 +114,7 @@ export const getProductById = async (id) => {
     p.created_at AS createdAt,
     p.update_at AS updatedAt,
     p.user_id AS userId,
-    p.gg_category_status AS ggCategoryStatus
+    p.gg_category_status AS ggCategoryStatus,
     CONCAT(
       '[', 
       GROUP_CONCAT(DISTINCT
@@ -220,14 +232,16 @@ export const updateProduct = async (id, updateFields, session) => {
          WHERE product_id = ? AND shop = ? AND chanel = ? AND variant_id = ?
          LIMIT 1;
        `;
+
         const upsertItemGGQb = await connection.query(upsertItemGGquery, [
           id,
           session.shop,
           2,
           variant.id,
         ]);
+        console.log(upsertItemGGQb);
         // Kiểm tra kết quả
-        if (upsertItemGGQb.length > 0) {
+        if (upsertItemGGQb[0].length > 0) {
           const item = upsertItemGGQb[0];
           // Câu lệnh SQL raw query để cập nhật dữ liệu
           const query = `
@@ -239,8 +253,9 @@ export const updateProduct = async (id, updateFields, session) => {
           // Thực thi raw query với tham số từ request body
           await connection.query(query, [1, item.id]);
         } else {
+          console.log("checl insert gg mc");
           const insertGGQuery = `INSERT INTO upsert_items_to_google (product_id, shop, chanel, status,variant_id)
-           VALUES (?, ?, ?, ?)`;
+           VALUES (?, ?, ?, ?,?)`;
 
           await connection.query(insertGGQuery, [
             id,
@@ -272,7 +287,7 @@ export const updateProduct = async (id, updateFields, session) => {
       console.log("queryvariants", updateVariantsQuery);
       await connection.query(updateVariantsQuery);
     }
-    console.log("eee1");
+
     // Cập nhật bảng product_media bằng WHEN IF
     if (images && images?.length) {
       const mediaIds = images.map((m) => m.id);

@@ -35,11 +35,13 @@ export default function Products() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10); // Số item mỗi trang, bạn có thể điều chỉnh
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const getData = async () => {
     const queryString = new URLSearchParams({
       page: currentPage,
       limit: itemsPerPage,
       searchKeyword: searchKeyword,
+      filterStatus: filterStatus,
     }).toString();
     try {
       const res = await fetch(`/api/product?${queryString}`, { method: "GET" });
@@ -50,7 +52,7 @@ export default function Products() {
         pendingCount: result?.pendingCount, // Đếm sản phẩm có trạng thái 'pending'
         disapprovedCount: result?.disapprovedCount, // Đếm sản phẩm có trạng thái 'disapproved'
         approvedCount: result?.approvedCount,
-        total: result?.total,
+        total: result?.totalCount,
       });
       setPagination({
         total: result?.total,
@@ -90,7 +92,7 @@ export default function Products() {
   };
   useEffect(() => {
     getData();
-  }, [currentPage, itemsPerPage, searchKeyword, synced]);
+  }, [currentPage, itemsPerPage, searchKeyword, synced, filterStatus]);
 
   return (
     // <>
@@ -123,6 +125,7 @@ export default function Products() {
             handleNext={handleNext}
             searchKeyword={searchKeyword}
             setSearchKeyword={setSearchKeyword}
+            setFilterStatus={setFilterStatus}
           />
         </Layout.Section>
       </Layout>
