@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "5cfff45a6a4c594436bb3cddb634a31a"
-application_url = "https://text-plains-slide-magazine.trycloudflare.com"
+application_url = "https://def-groundwater-attended-highlighted.trycloudflare.com"
 embedded = true
 name = "demo-shopi"
 handle = "demo-shopi-2"
@@ -15,11 +15,11 @@ api_version = "2025-01"
 
   [[webhooks.subscriptions]]
   topics = [ "products/create" ]
-  uri = "https://e608-113-160-81-90.ngrok-free.app/shopify-api-client/product/product_create"
+  uri = "https://8713-113-160-81-90.ngrok-free.app/shopify-api-client/product/product_create"
 
   [[webhooks.subscriptions]]
   topics = [ "products/delete" ]
-  uri = "https://e608-113-160-81-90.ngrok-free.app/shopify-api-client/product/delete"
+  uri = "https://8713-113-160-81-90.ngrok-free.app/shopify-api-client/product/delete"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -27,9 +27,9 @@ scopes = "read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://text-plains-slide-magazine.trycloudflare.com/auth/callback",
-  "https://text-plains-slide-magazine.trycloudflare.com/auth/shopify/callback",
-  "https://text-plains-slide-magazine.trycloudflare.com/api/auth/callback"
+  "https://def-groundwater-attended-highlighted.trycloudflare.com/auth/callback",
+  "https://def-groundwater-attended-highlighted.trycloudflare.com/auth/shopify/callback",
+  "https://def-groundwater-attended-highlighted.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

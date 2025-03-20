@@ -21,6 +21,7 @@ import session from "express-session";
 import {
   insertProductToGMC,
   saveInforUserToDB,
+  insertShopifyProductsToGMC,
 } from "./gg_cloud/ggCloudService.service.js";
 import ggCloudRouters from "./gg_cloud/ggCloud.routes.js";
 // @ts-ignore
@@ -283,11 +284,15 @@ app.get("/api/google", (req, res) => {
 app.post("/api/google-sync-mct", async (req, res) => {
   const session = res.locals.shopify.session;
   try {
-    const response = await insertProductToGMC(session, merchantCenterId, {
-      clientID,
-      clientSecret,
-      redirectUrlGG,
-    });
+    const response = await insertShopifyProductsToGMC(
+      merchantCenterId,
+      {
+        clientID,
+        clientSecret,
+        redirectUrlGG,
+      },
+      session
+    );
     return res.json(response);
   } catch (err) {
     console.log(err);

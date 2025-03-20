@@ -193,7 +193,8 @@ export const updateProduct = async (id, updateFields, session) => {
         option_3: [],
       };
 
-      variants.forEach((variant) => {
+      for (let i = 0; i < variants.length; i++) {
+        const variant = variants[i];
         cases.title.push(`WHEN id = ${variant.id} THEN '${variant.title}'`);
         cases.pricing.push(`WHEN id = ${variant.id} THEN ${variant.pricing}`);
         cases.image.push(`WHEN id = ${variant.id} THEN '${variant.image}'`);
@@ -212,7 +213,44 @@ export const updateProduct = async (id, updateFields, session) => {
         cases.option_3.push(
           `WHEN id = ${variant.id} THEN '${variant.option3 || null}'`
         );
-      });
+
+        const upsertItemGGquery = `
+        SELECT id
+         FROM xipat_init.upsert_items_to_google
+         WHERE product_id = ? AND shop = ? AND chanel = ? AND variant_id = ?
+         LIMIT 1;
+       `;
+        const upsertItemGGQb = await connection.query(upsertItemGGquery, [
+          id,
+          session.shop,
+          2,
+          variant.id,
+        ]);
+        // Kiểm tra kết quả
+        if (upsertItemGGQb.length > 0) {
+          const item = upsertItemGGQb[0];
+          // Câu lệnh SQL raw query để cập nhật dữ liệu
+          const query = `
+     UPDATE upsert_items_to_google
+     SET  status = ?
+     WHERE id = ?;
+   `;
+
+          // Thực thi raw query với tham số từ request body
+          await connection.query(query, [1, item.id]);
+        } else {
+          const insertGGQuery = `INSERT INTO upsert_items_to_google (product_id, shop, chanel, status,variant_id)
+           VALUES (?, ?, ?, ?)`;
+
+          await connection.query(insertGGQuery, [
+            id,
+            session.shop,
+            2,
+            1,
+            variant.id,
+          ]);
+        }
+      }
 
       const updateVariantsQuery = `
         UPDATE xipat_init.variants
@@ -300,6 +338,7 @@ export const updateProduct = async (id, updateFields, session) => {
     } else {
       await funcUpdateMediaGraphql(variables, session);
     }
+
     // await funcUpdateMediaGraphql(variables, session);
     await connection.commit();
     console.log("variables", variables);
