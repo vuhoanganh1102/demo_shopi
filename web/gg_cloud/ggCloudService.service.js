@@ -298,10 +298,18 @@ export const insertProductToGMC = async (session, merchantCenterId, envVar) => {
 };
 
 // Hàm lấy danh sách sản phẩm từ Shopify và parse sang GMC
-async function fetchAndParseShopifyProducts(session, limit = 100) {
+export async function insertShopifyProductsToGMC(
+  merchantCenterId,
+  envVar,
+  session,
+  limit = 100
+) {
+  const connection = await dbMySQL.getConnection();
+  const authClient = await getValidAuthClient(session.shop, envVar);
+  const content = await google.content({ version: "v2.1", auth: authClient });
   const client = new shopify.api.clients.Graphql({ session });
-
-  const query = `
+  try {
+    const query = `
       query {
         products(first: ${limit}) {
           edges {
@@ -364,21 +372,62 @@ async function fetchAndParseShopifyProducts(session, limit = 100) {
       }
     `;
 
-  const response = await client.request(query);
+    const response = await client.request(query);
+    const checkIdQuery = `SELECT product_id AS productId, variant_id AS variantId from xipat_init.upsert_items_to_google
+  WHERE shop = ? AND status = ? AND chanel = ? ;`;
+    const updateCheckIdQuery = `UPDATE xipat_init.upsert_items_to_google SET status = 2 WHERE product_id = ? AND variant_id = ? AND chanel = 2 ;`;
+    const checkIdQb = await connection.query(checkIdQuery, [
+      session.shop,
+      1,
+      2,
+    ]);
+    const productCheckIds = [];
+    const variantCheckIds = [];
+    checkIdQb[0].forEach((e) => {
+      productCheckIds.push(e.productId);
+      variantCheckIds.push(e.variantId);
+    });
+    console.log(checkIdQb[0]);
+    const products = response.data.products.edges.map((edge) => edge.node);
+    const result = [];
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
 
-  const products = response.data.products.edges.map((edge) => edge.node);
-  // const products = newDatas.map((e) => e.node);
-  // Parse tất cả sản phẩm sang định dạng GMC
-  // const gmcProducts = [];
-  // for (let i = 0; i < products.length; i++) {
-  //   // if (products[i]?.variants)
-  //   //   products[i].variants.edges.forEach((e) => {
-  //   //     e.node;
-  //   //   });
-  //   gmcProducts.push(products)
-  // }
+      const productId = stringSplitId(product.id);
+      if (productCheckIds.includes(productId)) {
+        for (let y = 0; y < product.variants.edges.length; y++) {
+          console.log("check");
+          const variantEdge = product.variants.edges[y];
+          const variantId = stringSplitId(variantEdge.node.id);
+          if (variantCheckIds.includes(variantId)) {
+            const toGMCdata = createMerchantCenterProduct(product, variantEdge);
+            const respone = await content.products.insert({
+              merchantId: merchantCenterId,
+              requestBody: toGMCdata,
+            });
+            const data = respone?.data;
+            result.push(data);
+            await connection.query(updateCheckIdQuery, [productId, variantId]);
+          }
+        }
+      }
+    }
+    // const products = newDatas.map((e) => e.node);
+    // Parse tất cả sản phẩm sang định dạng GMC
+    // const gmcProducts = [];
+    // for (let i = 0; i < products.length; i++) {
+    //   // if (products[i]?.variants)
+    //   //   products[i].variants.edges.forEach((e) => {
+    //   //     e.node;
+    //   //   });
+    //   gmcProducts.push(products)
+    // }
 
-  return createMerchantCenterProducts(products);
+    return result;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
 }
 const newDatas = [
   {
@@ -443,6 +492,44 @@ const newDatas = [
       "eyJsYXN0X2lkIjoxMDEwMjE0MTQxOTgwNywibGFzdF92YWx1ZSI6IjEwMTAyMTQxNDE5ODA3In0=",
   },
 ];
+function createMerchantCenterProduct(product, variantEdge) {
+  const variant = variantEdge.node;
+  const imageUrl = product.media.edges[0]?.node?.preview?.image?.url || "";
+  const productId = stringSplitId(product.id);
+  const variantId = stringSplitId(variant.id);
+
+  return {
+    kind: "content#product",
+    id: `online:vi:VN:shopify_VN_${productId}_${variantId}`,
+    offerId: `shopify_VN_${productId}_${variantId}`,
+    title: `${
+      variant.title === "Default Title"
+        ? product.title
+        : `${product.title} ${variant.title}`
+    }`, // Use variant title here
+    description: product.description || "",
+    link:
+      product.onlineStoreUrl ||
+      `https://initalstore.myshopify.com/products/${product.handle}?variant=${variantId}&country=VN&currency=VND&utm_medium=product_sync&utm_source=google&utm_content=sag_organic&utm_campaign=sag_organic`,
+    imageLink: imageUrl,
+    contentLanguage: "vi",
+    targetCountry: "VN",
+    feedLabel: "VN",
+    channel: "online",
+    availability: variant.inventoryQuantity ? "in stock" : "out of stock",
+    brand: product.vendor,
+    googleProductCategory: product?.category?.fullName || "Null Type", // This can be modified
+    price: {
+      value: variant.price || 10000, // Use variant price here
+      currency: "VND",
+    },
+    sellOnGoogleQuantity: variant.inventoryQuantity,
+    shippingWeight: {
+      value: 1, // Modify if needed
+      unit: "kg",
+    },
+  };
+}
 function createMerchantCenterProducts(shopifyProducts) {
   return shopifyProducts.map((product) => {
     return product.variants.edges.map((variantEdge) => {
