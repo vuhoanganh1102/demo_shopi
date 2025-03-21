@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "5cfff45a6a4c594436bb3cddb634a31a"
-application_url = "https://harold-reception-journalism-impact.trycloudflare.com"
+application_url = "https://commander-yea-represents-employ.trycloudflare.com"
 embedded = true
 name = "demo-shopi"
 handle = "demo-shopi-2"
@@ -15,21 +15,21 @@ api_version = "2025-01"
 
   [[webhooks.subscriptions]]
   topics = [ "products/create" ]
-  uri = "https://8713-113-160-81-90.ngrok-free.app/shopify-api-client/product/product_create"
+  uri = "https://068a-58-187-249-115.ngrok-free.app/shopify-api-client/product/product_create"
 
   [[webhooks.subscriptions]]
   topics = [ "products/delete" ]
-  uri = "https://8713-113-160-81-90.ngrok-free.app/shopify-api-client/product/delete"
+  uri = "https://068a-58-187-249-115.ngrok-free.app/shopify-api-client/product/delete"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products"
+scopes = "read_products,write_products,read_product_listings"
 
 [auth]
 redirect_urls = [
-  "https://harold-reception-journalism-impact.trycloudflare.com/auth/callback",
-  "https://harold-reception-journalism-impact.trycloudflare.com/auth/shopify/callback",
-  "https://harold-reception-journalism-impact.trycloudflare.com/api/auth/callback"
+  "https://commander-yea-represents-employ.trycloudflare.com/auth/callback",
+  "https://commander-yea-represents-employ.trycloudflare.com/auth/shopify/callback",
+  "https://commander-yea-represents-employ.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

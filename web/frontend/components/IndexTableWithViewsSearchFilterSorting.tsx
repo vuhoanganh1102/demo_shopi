@@ -44,10 +44,10 @@ export function IndexTableWithViewsSearchFilterSorting({
   useEffect(() => {
     if (data) {
       setItemStrings([
-        `All (${additionalData?.total})`,
+        `All (${additionalData?.total || 0})`,
         `Approved (${additionalData?.approvedCount || 0})`,
         `Disapproved (${additionalData?.disapprovedCount || 0})`,
-        `In queue (${additionalData?.pendingCount || 0})`,
+        `Pending (${additionalData?.pendingCount || 0})`,
       ]);
     }
   }, [data]); // Chạy lại khi `data` thay đổi
@@ -399,7 +399,7 @@ export function IndexTableWithViewsSearchFilterSorting({
           {ggProductCategory === "disapproved" ? (
             <Badge tone="critical">disapproved</Badge>
           ) : ggProductCategory === "pending" ? (
-            <Badge>In queue</Badge>
+            <Badge>Pending</Badge>
           ) : ggProductCategory === "approved" ? (
             <Badge tone="attention">approved</Badge>
           ) : (

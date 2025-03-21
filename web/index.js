@@ -14,19 +14,23 @@ import PrivacyWebhookHandlers from "./privacy.js";
 import dbMySQL from "./config/db.js";
 import cors from "cors";
 import ProductRouters from "./product/product.routes.js";
+// @ts-ignore
 import ggCloudRouter from "./gg_cloud/ggCloud.routes.js";
 import { google } from "googleapis";
 import * as crypto from "crypto";
 import session from "express-session";
 import {
+  // @ts-ignore
   insertProductToGMC,
   saveInforUserToDB,
   insertShopifyProductsToGMC,
+  initialInsertShopifyProductsToGMC,
 } from "./gg_cloud/ggCloudService.service.js";
 import ggCloudRouters from "./gg_cloud/ggCloud.routes.js";
 // @ts-ignore
 const clientID = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+// @ts-ignore
 const sessionSecret = process.env.SESSION_SECRET;
 const merchantCenterId = process.env.MECHANT_CENTER_ID;
 const redirectUrlGG = process.env.REDIRECT_URL_GG;
@@ -55,6 +59,7 @@ const state = crypto.randomBytes(32).toString("hex");
 // Store state in the session
 // req.session.state = state;
 
+// @ts-ignore
 // @ts-ignore
 const PORT = parseInt(
   // @ts-ignore
@@ -88,6 +93,7 @@ app.use(express.json());
 // Set up Shopify authentication and webhook handling
 // @ts-ignore
 // Route callback từ Google
+// @ts-ignore
 let userCredential;
 app.get(
   "/api/google/callback",
@@ -257,6 +263,7 @@ app.get("/api/products", async (_req, res) => {
 app.use("/api/product", ProductRouters);
 app.use("/api/gg-route", ggCloudRouters);
 // @ts-ignore
+// @ts-ignore
 app.get("/api/google", (req, res) => {
   // req.session["state"] = state;
 
@@ -281,6 +288,7 @@ app.get("/api/google", (req, res) => {
   return res.json(authorizationUrl);
 });
 // @ts-ignore
+// @ts-ignore
 app.post("/api/google-sync-mct", async (req, res) => {
   const session = res.locals.shopify.session;
   try {
@@ -293,6 +301,27 @@ app.post("/api/google-sync-mct", async (req, res) => {
       },
       session
     );
+    return res.json(response);
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+});
+// @ts-ignore
+app.post("/api/initial-google-sync-mct", async (req, res) => {
+  const session = res.locals.shopify.session;
+  console.log("checks");
+  try {
+    const response = await initialInsertShopifyProductsToGMC(
+      merchantCenterId,
+      {
+        clientID,
+        clientSecret,
+        redirectUrlGG,
+      },
+      session
+    );
+    console.log("checks2");
     return res.json(response);
   } catch (err) {
     console.log(err);

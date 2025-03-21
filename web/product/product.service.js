@@ -8,20 +8,22 @@ export const getAllProducts = async (
   filterStatus = ""
 ) => {
   const connection = await dbMySQL.getConnection();
+  console.log(keyword);
   try {
     const offset = (page - 1) * limit;
 
     // Điều kiện tìm kiếm nếu có keyword
     let searchCondition = "";
-    searchCondition = keyword ? searchCondition + "AND title LIKE ?" : "";
+    // searchCondition = keyword ? searchCondition + "AND p.title LIKE ? " : "";
     searchCondition = filterStatus
       ? searchCondition + "AND p.gg_category_status = ?"
       : "";
-    const searchValue = [];
-    keyword ? searchValue.push(`%${keyword}%`) : [];
+    const searchValue = [`%${keyword}%`];
+    // keyword ? searchValue.push(`%${keyword}%`) : [];
     filterStatus ? searchValue.push(filterStatus) : [];
     // Query lấy danh sách sản phẩm có phân trang + tìm kiếm
-
+    console.log(searchCondition);
+    console.log(searchValue);
     const [rows] = await connection.query(
       `
       SELECT 
@@ -50,7 +52,7 @@ export const getAllProducts = async (
         ) AS images
       FROM xipat_init.products p
       LEFT JOIN xipat_init.product_media pm ON pm.product_id = p.id
-      WHERE 1=1 ${searchCondition}
+      WHERE 1=1 AND p.title LIKE ? ${searchCondition}
       GROUP BY p.id
       LIMIT ? OFFSET ?
       `,
@@ -239,7 +241,6 @@ export const updateProduct = async (id, updateFields, session) => {
           2,
           variant.id,
         ]);
-        console.log(upsertItemGGQb);
         // Kiểm tra kết quả
         if (upsertItemGGQb[0].length > 0) {
           const item = upsertItemGGQb[0];

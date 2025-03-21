@@ -297,7 +297,7 @@ export const insertProductToGMC = async (session, merchantCenterId, envVar) => {
   //   const response = console.log("Product inserted:", response.data);
 };
 
-// Hàm lấy danh sách sản phẩm từ Shopify và parse sang GMC
+// Hàm lấy danh sách sản phẩm từ Shopify và parse sang GMC khi da co san phan
 export async function insertShopifyProductsToGMC(
   merchantCenterId,
   envVar,
@@ -410,6 +410,137 @@ export async function insertShopifyProductsToGMC(
             await connection.query(updateCheckIdQuery, [productId, variantId]);
           }
         }
+      }
+    }
+    // const products = newDatas.map((e) => e.node);
+    // Parse tất cả sản phẩm sang định dạng GMC
+    // const gmcProducts = [];
+    // for (let i = 0; i < products.length; i++) {
+    //   // if (products[i]?.variants)
+    //   //   products[i].variants.edges.forEach((e) => {
+    //   //     e.node;
+    //   //   });
+    //   gmcProducts.push(products)
+    // }
+
+    return result;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+}
+// Hàm lấy danh sách sản phẩm từ Shopify sang gmc lan dau sync
+export async function initialInsertShopifyProductsToGMC(
+  merchantCenterId,
+  envVar,
+  session,
+  limit = 100
+) {
+  const connection = await dbMySQL.getConnection();
+  const authClient = await getValidAuthClient(session.shop, envVar);
+  const content = await google.content({ version: "v2.1", auth: authClient });
+  const client = new shopify.api.clients.Graphql({ session });
+  try {
+    const query = `
+      query {
+        products(first: ${limit}) {
+          edges {
+            node {
+              id
+              title
+              category {
+                id
+                fullName
+              }
+              createdAt
+              description
+              descriptionHtml
+              media(first: 100) {
+                edges {
+                  node {
+                    id
+                    mediaContentType
+                    status
+                    preview{
+                      image{
+                        id
+                        url
+                      }
+                    }
+                  }
+                }
+              }
+              onlineStoreUrl
+              status
+              totalInventory
+              options {
+                name
+                values
+              }
+              variants(first: 100) {
+                edges {
+                  node {
+                    id
+                    price
+                    barcode
+                    inventoryQuantity
+                    displayName
+                    title
+                    taxCode
+                    __typename
+                    sku
+                  }
+                }
+              }
+              vendor
+              handle
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+    `;
+
+    const response = await client.request(query);
+    //   const checkIdQuery = `SELECT product_id AS productId, variant_id AS variantId from xipat_init.upsert_items_to_google
+    // WHERE shop = ? AND status = ? AND chanel = ? ;`;
+    //   const updateCheckIdQuery = `UPDATE xipat_init.upsert_items_to_google SET status = 2 WHERE product_id = ? AND variant_id = ? AND chanel = 2 ;`;
+    //   const checkIdQb = await connection.query(checkIdQuery, [
+    //     session.shop,
+    //     1,
+    //     2,
+    //   ]);
+    //   const productCheckIds = [];
+    //   const variantCheckIds = [];
+    //   checkIdQb[0].forEach((e) => {
+    //     productCheckIds.push(e.productId);
+    //     variantCheckIds.push(e.variantId);
+    //   });
+    //   console.log(checkIdQb[0]);
+    const products = response.data.products.edges.map((edge) => edge.node);
+    const result = [];
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+
+      // const productId = stringSplitId(product.id);
+      // if (productCheckIds.includes(productId)) {
+      for (let y = 0; y < product.variants.edges.length; y++) {
+        const variantEdge = product.variants.edges[y];
+        const variantId = stringSplitId(variantEdge.node.id);
+        // if (variantCheckIds.includes(variantId)) {
+        const toGMCdata = createMerchantCenterProduct(product, variantEdge);
+        const respone = await content.products.insert({
+          merchantId: merchantCenterId,
+          requestBody: toGMCdata,
+        });
+        const data = respone?.data;
+        result.push(data);
+        // await connection.query(updateCheckIdQuery, [productId, variantId]);
+        // }
+        // }
       }
     }
     // const products = newDatas.map((e) => e.node);

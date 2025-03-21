@@ -101,11 +101,11 @@ export default function Products() {
     <ProductPage>
       <div style={{ marginBottom: "20px" }}>
         <ButtonGroup>
-          {data?.length && (
+          {
             <Button onClick={() => getSyncedData()}>
               Get data from shopify save to db
             </Button>
-          )}
+          }
 
           {/* <Button>Get data</Button> */}
         </ButtonGroup>
